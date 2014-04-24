@@ -5,20 +5,31 @@ Initialize client:
 	client.authenticate(current activity, "redirect url",  "scopes");
 	
 Implemented methods: 
+
 getProfile()-returns profile information such as names, profile id etc.
+
 getRisks()-get user's and the general population's disease risks
+
 getSNPGenotypes()-returns a list of user's 
 
 Write to Database: 
-	dB database=new dB();
-	dB.insert(coloumn 1, column 2);
-	Display information as a list view:
-	listDisplay lv= new listDisplay(your array of data)
-	lv.display();
 
-See the 23andme and SMART API for approporiate specification for scopes, redirect url etc. 
+dB database=new dB();
 
-All requests to server should be made in an Asyntask thread:
+dB.insert(coloumn 1, column 2);
+
+Display information as a list view:
+
+listDisplay lv= new listDisplay(your array of data)
+
+lv.display();
+
+	See the 23andme and SMART API for approporiate specification for scopes, redirect url etc. 
+
+	
+	
+	All requests to server should be made in an Asyntask thread:
+	
 	class PostRequest extends AsyncTask<String,Void,String>{
 		requests to API
 	}
