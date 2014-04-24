@@ -5,10 +5,12 @@ import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -210,20 +212,21 @@ public class ttamClient extends Activity{
 		
 	}
 	
-	public void getUserId(){
+	public JSONObject getUserId(){
 		Log.d(TAG, this.accessToken);
 		HttpGet httpget = new HttpGet(
 				"https://api.23andme.com/1/names/");
 		httpget.setHeader("Authorization", "Bearer "
 				+ accessToken);
 		HttpClient httpclient = new DefaultHttpClient();
+		JSONObject nameObject = null;
 		try {
 			HttpResponse getResponse = httpclient
 					.execute(httpget);
 			getResponse = httpclient
 					.execute(httpget);
 			String nameString=  EntityUtils.toString(getResponse.getEntity());
-			JSONObject nameObject = new JSONObject(nameString);
+			nameObject = new JSONObject(nameString);
 			Log.d(TAG, "profile info: "+ nameObject.toString());
 			String nameId = nameObject.getString("id");
 			
@@ -237,13 +240,89 @@ public class ttamClient extends Activity{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return nameObject;
 	}
-	public void getRisks(){
+	public Hashtable<String, String>[] getRisks(){
 		
+		HttpClient httpclient = new DefaultHttpClient();
+		Hashtable<String, String> individual_risk=new Hashtable<String, String>();
+		Hashtable<String, String> population_risk=new Hashtable<String, String>();
+		HttpGet riskGet= new HttpGet("https://api.23andme.com/1/risks/" + profileId + "/");
+		riskGet.setHeader("Authorization", "Bearer "
+				+ accessToken);
+		HttpResponse riskResponse;
+		Hashtable<String,String>[] risksReturnArray = (Hashtable<String,String>[])new Hashtable<?,?>[2];
+		try {
+			riskResponse = httpclient.execute(riskGet);
+			JSONObject risks= new JSONObject(EntityUtils.toString(riskResponse.getEntity()));
+			Log.d(TAG, risks.toString());
+			JSONArray riskArray = new JSONArray(risks.getString("risks"));
+			Log.d("risk array", riskArray.toString());
+			ArrayList<JSONObject> riskList= new ArrayList<JSONObject>();
+			for(int x=0;x<riskArray.length();x++){ 
+				JSONObject risk=riskArray.getJSONObject(x);
+				individual_risk.put(risk.getString("description"), risk.getString("risk"));
+				population_risk.put(risk.getString("description"), risk.getString("population_risk"));
+			}	
+			risksReturnArray[0]=individual_risk;
+			risksReturnArray[1]=population_risk;
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		// Get the response
+		catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return risksReturnArray;
 	}
 	
-	public void getSNPGenotypes(String... SNPs){
-		
+	public List<String> getSNPGenotypes(String... SNPs){
+		String requestString="https://api.23andme.com/1/genotypes/"+profileId+"/?locations=";
+		for(int i=0;i<SNPs.length;i++){
+			if(i<SNPs.length-1){
+				requestString=requestString+SNPs[i]+"%20";				
+			}
+			else{
+				requestString=requestString+SNPs[i];
+			}
+		}
+		HttpClient httpclient = new DefaultHttpClient();
+		HttpGet httpget = new HttpGet(
+				requestString);
+		httpget.setHeader("Authorization", "Bearer "+accessToken);	
+		List<String> SNPGenotypes=new ArrayList<String>();
+		try {
+			HttpResponse snpResponse = httpclient.execute(httpget);
+			JSONObject genotypes= new JSONObject(EntityUtils.toString(snpResponse.getEntity()));
+			Log.d(TAG, genotypes.toString());
+			for(int i=0;i<SNPs.length;i++){
+				SNPGenotypes.add((String) genotypes.get(SNPs[i]));
+			}
+			Log.d(TAG, "Genotypes "+ SNPGenotypes.toString());
+			
+			    
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return SNPGenotypes;
 	}
 	
 	
