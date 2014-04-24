@@ -17,3 +17,8 @@ listDisplay lv= new listDisplay(your array of data)
 lv.display();
 
 See the 23andme and SMART API for approporiate specification for scopes, redirect url etc. 
+
+All requests to server should be made in an Asyntask thread:
+class PostRequest extends AsyncTask<String,Void,String>{
+	requests to API
+}
