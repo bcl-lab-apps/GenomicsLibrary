@@ -22,13 +22,17 @@ public final class R {
     }
     public static final class drawable {
         public static int ic_launcher=0x7f020000;
+        public static int img_dna=0x7f020001;
     }
     public static final class id {
-        public static int action_settings=0x7f080001;
-        public static int wView=0x7f080000;
+        public static int action_settings=0x7f080003;
+        public static int label=0x7f080001;
+        public static int logo=0x7f080000;
+        public static int wView=0x7f080002;
     }
     public static final class layout {
-        public static int web_overlay=0x7f030000;
+        public static int list_display=0x7f030000;
+        public static int web_overlay=0x7f030001;
     }
     public static final class menu {
         public static int main=0x7f070000;
