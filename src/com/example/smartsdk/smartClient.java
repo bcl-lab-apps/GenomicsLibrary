@@ -41,7 +41,7 @@ public class smartClient {
 	View page;
 	WebView gWebView;
 	ProgressDialog pageDialog;
-	final String TAG="SMART Lib";
+	final String TAG="SMART Client";
 	
 	public smartClient(String id,String secret){
 		this.clientId=id;
@@ -64,18 +64,18 @@ public class smartClient {
 		gWebView = (WebView) page.findViewById(R.id.wView);
 		activity.setContentView(page);
 		//pageDialog=ProgressDialog.show(activity.getApplication().getBaseContext(), "", "connecting to 23andme...");
-		gWebView.loadUrl("https://api.23andme.com/authorize/?redirect_uri="
-				+ rUrl + "&response_type=code&client_id=" + this.clientId
-				+ "&scope=" + scope);
+		gWebView.loadUrl("http://192.241.244.189/auth/authorize?response_type=code&client_id=" + this.clientId+ "&scope="+scope);
+		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=" + this.clientId+ "&scope="+scope);
+		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=IV9AMqP9&scope=read:sequence read:patient");
 		//gWebView.loadUrl("https://google.com");
-		Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
-				+ rUrl + "&response_type=code&client_id=" + this.clientId
-				+ "&scope=" + scope);
+		//Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
+		//		+ rUrl + "&response_type=code&client_id=" + this.clientId
+		//		+ "&scope=" + scope);
 		gWebView.setWebViewClient(new WebViewClient(){
 			@Override
 			public void onPageFinished(WebView view, String url) {
 				super.onPageFinished(view, url);
-				if(url.startsWith("https://api.23andme")){
+				if(url.startsWith("http://192.241.244.189")){
 					Log.d(TAG, "got to authentication page");
 				}
 				if (url.startsWith(rUrl)) {
@@ -125,7 +125,7 @@ public class smartClient {
 
 				HttpClient httpclient = new DefaultHttpClient();
 				HttpPost httppost = new HttpPost(
-						"https://api.23andme.com/token/");
+						"http://192.241.244.189/auth/token");
 				
 
 				try {
@@ -157,12 +157,14 @@ public class smartClient {
 						String jsonString = EntityUtils
 								.toString(response.getEntity());
 						JSONObject jObject = new JSONObject(jsonString);
+						Log.d(TAG, "access token: "+ jsonString);
 						String bearer_token = jObject
 								.getString("access_token");
 						if(bearer_token!=null){
 							bearer_tokens.add(bearer_token);
 						}
 						Log.d(TAG, bearer_tokens.toString());
+						/**
 						HttpGet httpget = new HttpGet(
 								"https://api.23andme.com/1/names/");
 						httpget.setHeader("Authorization", "Bearer "
@@ -173,7 +175,7 @@ public class smartClient {
 						JSONObject nameObject = new JSONObject(nameString);
 						String nameId = nameObject.getString("id");
 						profileId=nameId;
-						
+						**/
 					}
 
 				} catch (ClientProtocolException e) {
