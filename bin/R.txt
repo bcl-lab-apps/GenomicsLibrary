@@ -5,7 +5,7 @@ int drawable img_dna 0x7f020001
 int id action_settings 0x7f080003
 int id label 0x7f080001
 int id logo 0x7f080000
-int id wView 0x7f080002
+int id webview 0x7f080002
 int layout list_display 0x7f030000
 int layout web_overlay 0x7f030001
 int menu main 0x7f070000

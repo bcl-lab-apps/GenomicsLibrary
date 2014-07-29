@@ -5,10 +5,12 @@ import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -17,11 +19,14 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.app.DownloadManager.Request;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -35,47 +40,58 @@ public class smartClient {
 	private String clientId;
 	private String clientSecret;
 	private String redirectUrl;
-	protected String accessToken;
+	protected String accessToken="";
 	private String code;
 	protected String profileId;
 	View page;
 	WebView gWebView;
 	ProgressDialog pageDialog;
 	final String TAG="SMART Client";
-	
-	public smartClient(String id,String secret){
+	PostRequest request;
+	final OnTokenComplete act;
+	String baseurl;
+/**
+ * 
+ * @param id	your client id
+ * @param secret	your client secret
+ * @param parentActivity	current activity
+ * @param baseURL	URL of deployed SMART server
+ */
+	public smartClient(String id,String secret,OnTokenComplete parentActivity, String baseURL){
 		this.clientId=id;
 		this.clientSecret=secret;
+		act=parentActivity;
+		baseurl=baseURL;
 	}
 	//returns access token
-	public void authenticate(Activity activity,String redirectUrl, String scope){
-		String token="";
-		Log.d(TAG, "redirect url: "+ redirectUrl);
+	/**
+	 * 
+	 * @param activity 		Current activity you are on
+	 * @param redirectUrl	redirect url that you set
+	 * @param scope		Scopes of access
+	 * 
+	 */
+
+	public void inflateView(Activity activity,String redirectUrl, String scope){
+//		activity.setContentView(R.layout.web_overlay);
 		final String rUrl=redirectUrl;
-		this.accessToken=token;
-		final String id=this.clientId;
-		final String secret= this.clientSecret;
-		final String scopes=scope;
-		Log.d(TAG, "ID & secret: "+ id+ " "+ secret);
 		LayoutInflater inflater = activity.getLayoutInflater();
 		page=inflater.inflate(R.layout.web_overlay, null);
-		//activity.
-		//setContentView(R.layout.web_overlay);
-		gWebView = (WebView) page.findViewById(R.id.wView);
+		final String scopes=scope;
 		activity.setContentView(page);
+		//setContentView(R.layout.web_overlay);
+		gWebView = (WebView) page.findViewById(R.id.webview);
 		//pageDialog=ProgressDialog.show(activity.getApplication().getBaseContext(), "", "connecting to 23andme...");
-		gWebView.loadUrl("http://192.241.244.189/auth/authorize?response_type=code&client_id=" + this.clientId+ "&scope="+scope);
-		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=" + this.clientId+ "&scope="+scope);
+		gWebView.loadUrl("https://api.23andme.com/authorize/?redirect_uri="
+				+ redirectUrl + "&response_type=code&client_id=" + this.clientId
+				+ "&scope=" + scope );
 		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=IV9AMqP9&scope=read:sequence read:patient");
-		//gWebView.loadUrl("https://google.com");
-		//Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
-		//		+ rUrl + "&response_type=code&client_id=" + this.clientId
-		//		+ "&scope=" + scope);
+		
 		gWebView.setWebViewClient(new WebViewClient(){
 			@Override
 			public void onPageFinished(WebView view, String url) {
 				super.onPageFinished(view, url);
-				if(url.startsWith("http://192.241.244.189")){
+				if(url.startsWith("https://api.23andme.com")){
 					Log.d(TAG, "got to authentication page");
 				}
 				if (url.startsWith(rUrl)) {
@@ -97,37 +113,287 @@ public class smartClient {
 							}
 						}
 						gWebView.setVisibility(View.GONE);
-						new PostRequest().execute(code,id,secret,rUrl,scopes);
-						Log.d(TAG, "access token: "+ accessToken);
+						request= new PostRequest(act);
+						request.execute(code, smartClient.this.clientId, smartClient.this.clientSecret, rUrl, scopes);
+						Log.d(TAG, "Post execute");
+						Log.d(TAG, "cancelled");
+						
+						
 						// don't go to redirectUri
 					}
 				}
 			}
 		});
 		
+		
+	}
+	public void authenticate(Activity activity){
+		String token="";
+		Log.d(TAG, "redirect url: "+ redirectUrl);
+		final String rUrl=redirectUrl;
+		this.accessToken=token;
+		final String id=this.clientId;
+		final String secret= this.clientSecret;
+		Log.d(TAG, "ID & secret: "+ id+ " "+ secret);
+		//activity.
+		//gWebView.loadUrl("https://google.com");
+		//Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
+		//		+ rUrl + "&response_type=code&client_id=" + this.clientId
+		//		+ "&scope=" + scope);
+		
 		Log.d(TAG, "load webpage");
 		
 		//Intent rIntent=new Intent(activity.getApplicationContext(),redirectActivity.getClass());
 		//startActivity(rIntent);
+	}
+	
+	/**
+	 * 	
+	 * @return smartPatient patient patient class with varies data parameters
+	 */
+	public smartPatient getPatients(){
+		String baseUrl="http://192.241.244.189/Patient/?_format=json";
+		smartPatient user= new smartPatient();
+		Log.d(TAG, "access token: "+ accessToken);
+		HttpGet httpget = new HttpGet(
+				baseUrl);
+		HttpClient httpclient = new DefaultHttpClient();
+		httpget.setHeader("Authorization", "Bearer "+ accessToken);
+		try {
+			HttpResponse getResponse = httpclient
+					.execute(httpget);
+			String patientsString=  EntityUtils.toString(getResponse.getEntity());
+			Log.d(TAG, "profile: "+ patientsString);
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return user;
+	}
+
+/**
+ * 
+ * @param token access token 
+ * @param id patient id number
+ * @return patientString raw patient profile JSON in string format
+ */
+	public String getRawPatientJson(String token, String id){
+		smartPatient patient= new smartPatient();
+		String url= baseurl+"/Patient/"+ id;
+		HttpGet httpget = new HttpGet(
+				url);
+		HttpClient httpclient = new DefaultHttpClient();
+		httpget.setHeader("Authorization", "Bearer "+ token);
+		String patientString = "";
+		try {
+			HttpResponse getResponse = httpclient
+					.execute(httpget);
+			patientString = EntityUtils.toString(getResponse.getEntity());
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return patientString;
 		
 	}
 	
-	class PostRequest extends AsyncTask<String,Void,String>{
+/**
+ * 
+ * @param token 	access token
+ * @param id 	patient id
+ * @param patient	current smartPatient object
+ * @return patient object with updated parameters
+ */
+	public smartPatient getPatient(String token, String id, smartPatient patient){
+		String url= baseurl+"/Patient/"+ id;
+		HttpGet httpget = new HttpGet(
+				url);
+		HttpClient httpclient = new DefaultHttpClient();
+		httpget.setHeader("Authorization", "Bearer "+ token);
+		try {
+			HttpResponse getResponse = httpclient
+					.execute(httpget);
+			String patientString=  EntityUtils.toString(getResponse.getEntity());
+			JSONObject profile= new JSONObject(patientString);
+			JSONArray identifier= profile.getJSONArray("identifier");
+			Log.d(TAG, "idenfifier array length: "+ identifier.length());	
+			
+			JSONArray names=profile.getJSONArray("name");
+			String name=names.getJSONObject(0).getString("given")+names.getJSONObject(0).getString("family");
+			Log.d(TAG, "name: "+ name);
+			Log.d(TAG, "name array length: "+ names.length());
+			JSONArray genders=profile.getJSONArray("gender");
+			Log.d(TAG, "profile: "+ patientString);
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return patient;		
+	} 
+	public smartPatient getPatientTest(String token, String id, smartPatient patient){
+		String url= baseurl+"/Patient/"+ id;
+		HttpGet httpget = new HttpGet("https://fhir-open-api.smartplatforms.org/Patient/1032702"
+				);
+		HttpClient httpclient = new DefaultHttpClient();
+		httpget.setHeader("Accept", "application/json");
+		try {
+			HttpResponse getResponse = httpclient
+					.execute(httpget);
+			String patientString=  EntityUtils.toString(getResponse.getEntity());
+			JSONObject profile= new JSONObject(patientString);
+			JSONArray identifier= profile.getJSONArray("identifier");
+			Log.d(TAG, "idenfifier array length: "+ identifier.length());	
+			String patientID=identifier.getJSONObject(0).getString("value");
+			JSONArray names=profile.getJSONArray("name");
+			String given=names.getJSONObject(0).getString("given");
+			String family=names.getJSONObject(0).getString("family");
+			Log.d(TAG, "parsed string: "+ JSONParser.parseBrackets(given));
+			String name=JSONParser.parseBrackets(given)+JSONParser.parseBrackets(family);
+			Log.d(TAG, "name: "+ name);
+			Log.d(TAG, "name array length: "+ names.length());
+			JSONObject genders=profile.getJSONObject("gender");
+			Log.d(TAG, "profile: "+ patientString);
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return patient;		
+	}
+	/**
+	 * 
+	 * @param SNPs list of SNPs in chromosome coordinate format(chr1:3307-3308)
+	 * @return Hashmap in format of <coordinate,genotype>
+	 */
+	
+	public HashMap getSNPGenotypes(String token,String... SNPs){
+		HashMap<String,String> genotypes= new HashMap<String, String>();
+		String url=baseurl+"/sequence/";
+		for(int i=0;i<SNPs.length;i++){
+			String SNP=SNPs[i];
+			HttpClient client= new DefaultHttpClient();
+			
+			
+		}
+		return genotypes;
+	}
+	/**
+	 * 
+	 * @param SNP	a single SNP coordinate, such as chr1:1223-1224
+	 * @param token access token
+	 * @param id patient id
+	 * @param sequence an instance of smartSequence
+	 * @return smartSequence with updated SNP genotypes, sample source, etc. Coordinate-genotype pairs can be obtained by calling smartSequence.getSequences()
+	 */
+	public smartSequence getSingleSNPGenotype(String SNP,String token,String id,smartSequence sequence){
+		String genotype="";
+		String url=baseurl+"/sequence/"+ "?patient=patient/"+id+"&coordinates="+ SNP+"&_format=json";
+		HttpClient client= new DefaultHttpClient();
+		HttpGet genotypeGet=new HttpGet(url);
+		genotypeGet.setHeader("Authorization", "Bearer "+ token);		
+		try {
+			HttpResponse getResponse=client.execute(genotypeGet);
+			getResponse.getEntity();
+			JSONObject genotypeResponse=new JSONObject(EntityUtils.toString(getResponse.getEntity()));
+			JSONArray coordinates=genotypeResponse.getJSONArray("coordinate");
+			sequence.setReferenceGenome(coordinates.getJSONObject(0).getString("assembly"));
+			String gtype=JSONParser.parseBrackets(genotypeResponse.getString("read")).replace(" ", "|");
+			sequence.addSNP(SNP, gtype);
+			sequence.setSequenceType(genotypeResponse.getString("type"));
+			JSONArray sample= genotypeResponse.getJSONArray("sample");
+			sequence.setSampleType(sample.getJSONObject(0).getString("type"));
+		}
+		catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return sequence;
+	}
+	
+	private static boolean verifyLength(String SNP){
+		boolean isSingle=true;
+		if(Integer.valueOf(JSONParser.coordinateParse(SNP)[2])-Integer.valueOf(JSONParser.coordinateParse(SNP)[1])!=1){
+			isSingle=false;
+		}else{
+			isSingle=true;
+		}
+		return isSingle;
+	}
+	public String getSingleSNPGenotypeTest(String SNP,String token,String id){
+		String genotype="";
+		String url=baseurl+"/sequence/"+ "?patient=patient/"+id+"&coordinates="+ SNP+"&_format=json";
+		HttpClient client= new DefaultHttpClient();
+		HttpGet genotypeGet=new HttpGet(url);
+		genotypeGet.setHeader("Authorization", "Bearer "+ token);
+		try {
+			//HttpResponse getResponse=client.execute(genotypeGet);
+			JSONObject genotypeResponse=new JSONObject("{\n  \"resourceType\": \"Sequence\",\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div>Example Sequece Resource showing patient John Doe\'s genotype of SNP rs421016</div>\"\n  },\n  \"patient\": {\n    \"reference\": \"Patient/example\"\n  },\n  \"type\": \"DNA\",\n  \"species\": {\n    \"coding\": [\n      {\n        \"system\": \"2.16.840.1.113883.6.96\",\n        \"code\": \"337915000\"\n      }\n    ],\n    \"text\": \"Homo sapiens\"\n  },\n  \"sample\": {\n    \"type\": \"germline\",\n    \"source\": {\n      \"coding\": [\n        {\n          \"system\": \"2.16.840.1.113883.6.96\",\n          \"code\": \"256897009\"\n        }\n      ],\n      \"text\": \"Saliva\"\n    }\n  },\n  \"coordinate\": {\n    \"assembly\": \"GRCh37\",\n    \"chromosome\": \"chr1\",\n    \"start\": 155205042,\n    \"end\": 155205043\n  },\n  \"baseQuality\": {\n    \"type\": \"overall\",\n    \"value\": \"39\"\n  },\n  \"mappingQuality\": 43,\n  \"read\": [\n    \"A\",\n    \"G\"\n  ]\n}");
+			Log.d(TAG,"Genotypes: "+ JSONParser.parseBrackets(genotypeResponse.getString("read")));
+			JSONArray coordinates=genotypeResponse.getJSONArray("coordinate");
+			coordinates.getJSONObject(0).getString("assembly");
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return genotype;
+	}
+	/**
+	 * 
+	 * @return the current client's access token
+	 */
+	public String getAccessToken(){
+		return this.accessToken;		
+	}
+	
+	public smartPatient getGeneticObservation(smartPatient patient){
 		
+		return patient;
+	}
+	class PostRequest extends AsyncTask<String,Void,String>{
 
 
+		public PostRequest(OnTokenComplete activity){
+			
+		}
 		@Override
 		protected String doInBackground(String... params) {
-			String code=params[0];
+			//Log.d(TAG, "access token: "+ accessToken);
 			List<String> bearer_tokens= new ArrayList<String>();
 			if (code != null) {
 				System.out.println(code);				
-
+				
 				HttpClient httpclient = new DefaultHttpClient();
 				HttpPost httppost = new HttpPost(
-						"http://192.241.244.189/auth/token");
+						"https://api.23andme.com/token/");
 				
-
+				
 				try {
 					// data pairs
 					List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
@@ -144,10 +410,10 @@ public class smartClient {
 							"code", code));
 					nameValuePairs.add(new BasicNameValuePair(
 							"scope", params[4]));
-
+					
 					httppost.setEntity(new UrlEncodedFormEntity(
 							nameValuePairs));
-
+					
 					// Execute HTTP Post Request
 					if(httppost != null){
 						
@@ -165,28 +431,28 @@ public class smartClient {
 						}
 						Log.d(TAG, bearer_tokens.toString());
 						/**
-						HttpGet httpget = new HttpGet(
-								"https://api.23andme.com/1/names/");
-						httpget.setHeader("Authorization", "Bearer "
-								+ bearer_token);
-						HttpResponse getResponse = httpclient
-								.execute(httpget);
-						String nameString=  EntityUtils.toString(getResponse.getEntity());
-						JSONObject nameObject = new JSONObject(nameString);
-						String nameId = nameObject.getString("id");
-						profileId=nameId;
-						**/
+										HttpGet httpget = new HttpGet(
+												"https://api.23andme.com/1/names/");
+										httpget.setHeader("Authorization", "Bearer "
+												+ bearer_token);
+										HttpResponse getResponse = httpclient
+												.execute(httpget);
+										String nameString=  EntityUtils.toString(getResponse.getEntity());
+										JSONObject nameObject = new JSONObject(nameString);
+										String nameId = nameObject.getString("id");
+										profileId=nameId;
+						 **/
 					}
-
+					
 				} catch (ClientProtocolException e) {
 					// TODO Auto-generated catch block
 					System.out.println("CPE" + e);
 				} catch(SocketException ex)
-			       {
-			         Log.e("Error : " , "Error on soapPrimitiveData() " + ex.getMessage());
-			           ex.printStackTrace();
-			           //return "error occured";
-			       } catch (JSONException e) {
+				{
+					Log.e("Error : " , "Error on soapPrimitiveData() " + ex.getMessage());
+					ex.printStackTrace();
+					//return "error occured";
+				} catch (JSONException e) {
 					e.printStackTrace();
 					//return "error occured";
 				} catch (IllegalStateException e) {
@@ -199,50 +465,20 @@ public class smartClient {
 				}
 			}
 			accessToken=bearer_tokens.get(0);
-			return "";
+			Log.d(TAG, "background thread, token: "+accessToken);
 			
-		}	
+
+			return null;
+		}
 		@Override
 		protected void onPostExecute(String result) {
 			super.onPostExecute(result);
+			act.OnTokenCompleted(accessToken);
 		}
 		
 	}
 	
-	public void getUserId(){
-		Log.d(TAG, this.accessToken);
-		HttpGet httpget = new HttpGet(
-				"https://api.23andme.com/1/names/");
-		httpget.setHeader("Authorization", "Bearer "
-				+ accessToken);
-		HttpClient httpclient = new DefaultHttpClient();
-		try {
-			HttpResponse getResponse = httpclient
-					.execute(httpget);
-			getResponse = httpclient
-					.execute(httpget);
-			String nameString=  EntityUtils.toString(getResponse.getEntity());
-			JSONObject nameObject = new JSONObject(nameString);
-			Log.d(TAG, "profile info: "+ nameObject.toString());
-			String nameId = nameObject.getString("id");
-			
-		} catch (ClientProtocolException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	public void getRisks(){
-		
-	}
 	
-	public void getSNPGenotypes(String... SNPs){
-		
-	}
+	
 	
 }

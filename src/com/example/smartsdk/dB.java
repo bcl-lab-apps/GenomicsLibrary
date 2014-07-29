@@ -1,5 +1,6 @@
 package com.example.smartsdk;
 
+import java.util.ArrayList;
 import java.util.Date;
 
 import android.content.ContentValues;
@@ -11,12 +12,17 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
 public class dB {
-	public final String DB_NAME="risk.db";
+	public final String DB_NAME="patients.db";
 	public final int DB_VERSION=1;
-	public final String TABLE= "risk";
+	public final String TABLE= "patients";
 	public final String C_ID= "_id";
 	public final String C_CREATED_AT="created_at";
+	public final String C_NAME="name";
+	public final String C_GENDER="gender";
+	public final String C_PID="patient_id";
+	public final String C_ADDRESS="address";
 	public final String C_SCORE= "risk_score";
+	public final String C_PROCEDURE="procedures";
 	public final String C_DISEASE= "diseases";
 	//public final String C_AVERAGE= "average_risk";
 			
@@ -29,9 +35,13 @@ public class dB {
 		dbHelper= new DbHelper();
 	}
 	
+	public dB(Context context, smartPatient patient){
+		this.context=context;
+		
+	}
+	
 	public void insert(String scores, String disease){
 		db = dbHelper.getWritableDatabase();
-		db.delete(TABLE, null, null);
 		ContentValues values = new ContentValues();
 		values.put(C_CREATED_AT, new Date().getTime() );
 		values.put(C_SCORE, scores);
@@ -40,6 +50,13 @@ public class dB {
 		db.close();
 	}
 	
+	public void updatePatient(smartPatient patient){
+		
+	}
+	
+	public void getPatient(String id){
+		
+	}
 	public String[] getFirstScores(){
 		String[] risks=new String[2];
 		db= dbHelper.getWritableDatabase();
@@ -50,6 +67,12 @@ public class dB {
 		cursor.close();
 		db.close();
 		return risks;	
+	}
+	
+	public ArrayList<smartPatient> getAll(){
+		ArrayList<smartPatient> patients= new ArrayList<smartPatient>();
+		
+		return patients;
 	}
 	
 	public String getFirstDiseases(){

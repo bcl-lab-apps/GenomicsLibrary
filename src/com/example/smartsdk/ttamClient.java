@@ -24,7 +24,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.example.smartsdk.R;
+import com.example.smartsdk.smartClient.PostRequest;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -36,7 +38,7 @@ import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-public class ttamClient extends Activity{
+public class ttamClient {
 	private String clientId;
 	private String clientSecret;
 	private String redirectUrl;
@@ -47,40 +49,33 @@ public class ttamClient extends Activity{
 	WebView gWebView;
 	ProgressDialog pageDialog;
 	final String TAG="SMART Lib";
+	PostRequest request;
 	
 	public ttamClient(String id,String secret){
+		accessToken="";
 		this.clientId=id;
 		this.clientSecret=secret;
 	}
 	//returns access token
-	public void authenticate(Activity activity,String redirectUrl, String scope){
-		String token="";
-		Log.d(TAG, "redirect url: "+ redirectUrl);
+	public String inflateView(Activity activity,String redirectUrl, String scope){
+//		activity.setContentView(R.layout.web_overlay);
 		final String rUrl=redirectUrl;
-		this.accessToken=token;
-		final String id=this.clientId;
-		final String secret= this.clientSecret;
-		final String scopes=scope;
-		Log.d(TAG, "ID & secret: "+ id+ " "+ secret);
 		LayoutInflater inflater = activity.getLayoutInflater();
 		page=inflater.inflate(R.layout.web_overlay, null);
-		//activity.
-		//setContentView(R.layout.web_overlay);
-		gWebView = (WebView) page.findViewById(R.id.wView);
 		activity.setContentView(page);
+		//setContentView(R.layout.web_overlay);
+		gWebView = (WebView) page.findViewById(R.id.webview);
 		//pageDialog=ProgressDialog.show(activity.getApplication().getBaseContext(), "", "connecting to 23andme...");
 		gWebView.loadUrl("https://api.23andme.com/authorize/?redirect_uri="
-				+ rUrl + "&response_type=code&client_id=" + this.clientId
-				+ "&scope=" + scope);
-		//gWebView.loadUrl("https://google.com");
-		Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
-				+ rUrl + "&response_type=code&client_id=" + this.clientId
-				+ "&scope=" + scope);
+				+ redirectUrl + "&response_type=code&client_id=" + this.clientId
+				+ "&scope=" + scope ); 
+//gWebView.loadUrl("https://google.);
+		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=IV9AMqP9&scope=read:sequence read:patient");
 		gWebView.setWebViewClient(new WebViewClient(){
 			@Override
 			public void onPageFinished(WebView view, String url) {
 				super.onPageFinished(view, url);
-				if(url.startsWith("https://api.23andme")){
+				if(url.startsWith("http://192.241.244.189")){
 					Log.d(TAG, "got to authentication page");
 				}
 				if (url.startsWith(rUrl)) {
@@ -102,15 +97,93 @@ public class ttamClient extends Activity{
 							}
 						}
 						gWebView.setVisibility(View.GONE);
-						new PostRequest().execute(code,id,secret,rUrl,scopes);
-						Log.d(TAG, "access token: "+ accessToken);
+						PostRequest request= new PostRequest();
+						request.execute(code);
+						Log.d(TAG, "Post execute");
+						request.cancel(true);
+						Log.d(TAG, "cancelled");
 						// don't go to redirectUri
 					}
 				}
 			}
 		});
 		
-		Log.d(TAG, "load webpage");
+		//while(true){
+		//	if(!accessToken.equals("")){
+				Log.d(TAG, "not empty");
+		//		break;
+		//	}
+		//}
+		return accessToken;
+	}
+	
+	public String authenticate(Activity activity,String redirectUrl, String scope){
+		String token="";
+		Log.d(TAG, "redirect url: "+ redirectUrl);
+		final String rUrl=redirectUrl;
+		this.accessToken=token;
+		final String id=this.clientId;
+		final String secret= this.clientSecret;
+		final String scopes=scope;
+		Log.d(TAG, "ID & secret: "+ id+ " "+ secret);
+		LayoutInflater inflater = activity.getLayoutInflater();
+		page=inflater.inflate(R.layout.web_overlay, null);
+		activity.setContentView(page);
+		//activity.
+		//setContentView(R.layout.web_overlay);
+		gWebView = (WebView) page.findViewById(R.id.webview);
+		//pageDialog=ProgressDialog.show(activity.getApplication().getBaseContext(), "", "connecting to 23andme...");
+		gWebView.loadUrl("https://api.23andme.com/authorize/?redirect_uri="
+						+ rUrl + "&response_type=code&client_id=" + this.clientId
+						+ "&scope=" + scopes); 
+		//gWebView.loadUrl("https://google.com");
+		Log.d(TAG, "http://192.241.244.189/auth/authorize?response_type=code&client_id=IV9AMqP9&scope=read:sequence read:patient");
+		request=new PostRequest();
+		gWebView.setWebViewClient(new WebViewClient(){
+			
+			@Override
+			public void onPageFinished(WebView view, String url) {
+				super.onPageFinished(view, url);
+				if(url.startsWith("https://api.23andme")){
+					Log.d(TAG, "load webpage");
+					Log.d(TAG, "got to authentication page");
+				}
+				if (url.startsWith(rUrl)) {
+					System.out.println("got to override");
+					if (url.indexOf("code=") != -1) {
+						//if the query contains code
+						String queryString = null;
+						try {
+							queryString = new URL(url).getQuery();
+						} catch (MalformedURLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						System.out.println(queryString);
+						String[] params = queryString.split("&");
+						for (String param : params) {
+							if (param.startsWith("code=")) {
+								code = param.substring(param.indexOf('=') + 1);
+							}
+						}
+						gWebView.setVisibility(View.GONE);
+						request.execute(code);
+						//Log.d(TAG, "access token: "+ accessToken);
+						gWebView.destroy();
+						// don't go to redirectUri
+					}
+				}
+			}
+		});
+		while(true){
+			if(accessToken!=""){
+				Log.d(TAG, "not empty: "+ accessToken);
+				request.cancel(true);
+				break;							
+			}
+		}
+		
+		return accessToken;
 		
 		//Intent rIntent=new Intent(activity.getApplicationContext(),redirectActivity.getClass());
 		//startActivity(rIntent);
