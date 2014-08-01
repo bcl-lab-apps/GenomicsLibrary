@@ -45,7 +45,7 @@ public class smartSequence {
 	}
 	/**
 	 * 
-	 * @return germline/somatic 
+	 * @return germline/somati/prenatal
 	 */
 	public String getSampleType(){
 		return this.sampleType;

@@ -364,6 +364,34 @@ public class smartClient {
 		}
 		return genotype;
 	}
+	
+	public smartSequencingLab getSequencingLab(String id, String token, smartSequencingLab lab){
+		String url=baseurl+"/Procedure?_profile=https://api.genomics.smartplatforms.org/profile/sequencinglab&subject=patient/"+id+"&_format=json";
+		HttpClient client=new DefaultHttpClient();
+		HttpGet labGet=new HttpGet(url);
+		labGet.setHeader("Authorization", "Bearer "+ token);
+		try {
+			HttpResponse response=client.execute(labGet);
+			JSONObject seqLab=new JSONObject(EntityUtils.toString(response.getEntity()));
+			lab.setLabName(seqLab.getString("name"));
+			seqLab.getJSONArray("");
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return lab;	
+	}
+	
+	
 	/**
 	 * 
 	 * @return the current client's access token
