@@ -1,5 +1,7 @@
 package com.example.smartsdk;
-
+/**
+ * @author Xi(Stephen) Chen
+ */
 import java.util.ArrayList;
 
 import org.json.JSONObject;
@@ -9,13 +11,16 @@ public class smartPatient {
 	private String address;
 	private String gender;
 	private String p_id;
-	private smartProdecure procedures;
 	private String e_address;
+	private String ttam_id;
 	private smartObservation observations;
+	private smartSequencingLab SequencingLab;
 	private ArrayList<smartSequence> sequences;
 	
 	public smartPatient(){	
 		sequences=new ArrayList<smartSequence>();
+		this.ttam_id="";
+		this.observations= new smartObservation();
 	}
 	
 	public void setName(String nm){
@@ -38,10 +43,13 @@ public class smartPatient {
 		this.e_address=mail;
 	}
 	
-	public smartProdecure getProcedure(){
-		return this.procedures;
+	public void setTtamId(String id){
+		this.ttam_id=id;
 	}
 	
+	public void setAnObservation(smartObservation obs){
+		this.observations=obs;
+	}
 	
 	public String getUserName(){		
 		return this.name;
@@ -57,6 +65,30 @@ public class smartPatient {
 		return this.address;
 	}
 	
+	public String getGender(){
+		return this.gender;
+	}
+	
+	public String getTtamId(){
+		return this.ttam_id;
+	}
+	
+	public String getEmail(){
+		return this.e_address;
+	}
+	
+	public smartObservation getAnObservation(){
+		return this.observations;
+	}
+	
+	public void setSequencingLab(smartSequencingLab lab){
+		this.SequencingLab=lab;
+	}
+	
+	public smartSequencingLab getSequencingLab(){
+		return this.SequencingLab;
+	}
+	
 	public void addSequence(smartSequence sequence){
 		this.sequences.add(sequence);
 	}
@@ -64,6 +96,7 @@ public class smartPatient {
 	public ArrayList<smartSequence> getSequenes(){
 		return this.sequences;
 	}
+	
 	
 	
 

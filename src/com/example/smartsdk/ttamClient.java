@@ -26,7 +26,6 @@ import org.json.JSONObject;
 import com.example.smartsdk.R;
 import com.example.smartsdk.smartClient.PostRequest;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;

@@ -1,8 +1,10 @@
 package com.example.smartsdk;
-
+/**
+ * @author Xi(Stephen) Chen
+ */
 import android.util.Log;
 
- class JSONParser {
+public class JSONParser {
 	static final String TAG="JSONParser";
 	public static String parseBrackets(String json){
 		int firstIndex=json.indexOf("[");

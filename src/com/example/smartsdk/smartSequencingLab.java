@@ -1,11 +1,24 @@
 package com.example.smartsdk;
-
+/**
+ * @author Xi(Stephen) Chen
+ */
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
+
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 
 import android.os.AsyncTask;
 import android.os.PowerManager;
@@ -17,8 +30,19 @@ public class smartSequencingLab {
 	private String sequenceType;
 	private String labName;
 	private String organization;
+	private String storedFileLocation;
+	private String referenceGenome;
+	
 	public smartSequencingLab(){
 		
+	}
+	
+	public void setReferenceGenome(String genome){
+		this.referenceGenome=genome;
+	}
+	
+	public String getReferenceGenome(){
+		return this.referenceGenome;
 	}
 	
 	public void setSampleType(String type){
@@ -50,13 +74,17 @@ public class smartSequencingLab {
 	}
 	
 	public void downloadLabFile(String pathAndFileName){
+		this.storedFileLocation=pathAndFileName;
 		this.downloadLabFile(pathAndFileName,this.fileLocation);
 	}
 	
 	public void setSequenceType(String type){
 		this.sequenceType=type;
 	}
-	
+	public String getStoredFileLocation(){
+		return this.storedFileLocation;
+	}
+	                                      
 	public String getSequenceType(){
 		return this.sequenceType;
 	}
@@ -77,14 +105,11 @@ public class smartSequencingLab {
 		return this.organization;
 	}
 	
-	public void uploadLab(){
-		
+	public void uploadLab(String filePath,String fileName, String fileFormat ){
+		new uploadTask().execute(filePath,fileName,fileFormat);
 	}
 	
 	private class DownloadTask extends AsyncTask<String, Integer, String> {
-
-	    private PowerManager.WakeLock mWakeLock;
-
 
 	    @Override
 	    protected String doInBackground(String... params) {
@@ -147,9 +172,23 @@ public class smartSequencingLab {
 
 		@Override
 		protected String doInBackground(String... params) {
-			// TODO Auto-generated method stub
+			MultipartEntityBuilder builder = MultipartEntityBuilder.create(); 
+			builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+			try {
+				HttpPost httppost = new HttpPost(Global.serverUrl);
+				builder.addPart("title", new StringBody(params[1], Charset.forName("UTF-8")));
+				File myFile = new File(params[0]);
+				FileBody fileBody = new FileBody(myFile, params[2]);
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+
+			
 			return null;
 		}
+		
 		
 	}
 }

@@ -1,5 +1,7 @@
 package com.example.smartsdk;
-
+/**
+ * @author Xi(Stephen) Chen
+ */
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.SocketException;
@@ -62,6 +64,7 @@ public class smartClient {
 		this.clientSecret=secret;
 		act=parentActivity;
 		baseurl=baseURL;
+		Global.serverUrl=baseURL;
 	}
 	//returns access token
 	/**
@@ -75,6 +78,7 @@ public class smartClient {
 	public void inflateView(Activity activity,String redirectUrl, String scope){
 //		activity.setContentView(R.layout.web_overlay);
 		final String rUrl=redirectUrl;
+		
 		LayoutInflater inflater = activity.getLayoutInflater();
 		page=inflater.inflate(R.layout.web_overlay, null);
 		final String scopes=scope;
@@ -91,7 +95,7 @@ public class smartClient {
 			@Override
 			public void onPageFinished(WebView view, String url) {
 				super.onPageFinished(view, url);
-				if(url.startsWith("https://api.23andme.com")){
+				if(url.startsWith("baseurl")){
 					Log.d(TAG, "got to authentication page");
 				}
 				if (url.startsWith(rUrl)) {
@@ -127,31 +131,12 @@ public class smartClient {
 		
 		
 	}
-	public void authenticate(Activity activity){
-		String token="";
-		Log.d(TAG, "redirect url: "+ redirectUrl);
-		final String rUrl=redirectUrl;
-		this.accessToken=token;
-		final String id=this.clientId;
-		final String secret= this.clientSecret;
-		Log.d(TAG, "ID & secret: "+ id+ " "+ secret);
-		//activity.
-		//gWebView.loadUrl("https://google.com");
-		//Log.d(TAG, "https://api.23andme.com/authorize/?redirect_uri="
-		//		+ rUrl + "&response_type=code&client_id=" + this.clientId
-		//		+ "&scope=" + scope);
-		
-		Log.d(TAG, "load webpage");
-		
-		//Intent rIntent=new Intent(activity.getApplicationContext(),redirectActivity.getClass());
-		//startActivity(rIntent);
-	}
 	
 	/**
 	 * 	
 	 * @return smartPatient patient patient class with varies data parameters
 	 */
-	public smartPatient getPatients(){
+	public String getAllPatientsJSON(){
 		String baseUrl="http://192.241.244.189/Patient/?_format=json";
 		smartPatient user= new smartPatient();
 		Log.d(TAG, "access token: "+ accessToken);
@@ -159,10 +144,11 @@ public class smartClient {
 				baseUrl);
 		HttpClient httpclient = new DefaultHttpClient();
 		httpget.setHeader("Authorization", "Bearer "+ accessToken);
+		String patientsString = "";
 		try {
 			HttpResponse getResponse = httpclient
 					.execute(httpget);
-			String patientsString=  EntityUtils.toString(getResponse.getEntity());
+			patientsString=  EntityUtils.toString(getResponse.getEntity());
 			Log.d(TAG, "profile: "+ patientsString);
 		} catch (ClientProtocolException e) {
 			// TODO Auto-generated catch block
@@ -171,7 +157,7 @@ public class smartClient {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return user;
+		return patientsString;
 	}
 
 /**
@@ -242,6 +228,13 @@ public class smartClient {
 		}
 		return patient;		
 	} 
+	/**
+	 * 
+	 * @param token access token
+	 * @param id	patient's ID for SMART
+	 * @param patient an instance of smartPatient
+	 * @return instance of smartPatient with updated parameters
+	 */
 	public smartPatient getPatientTest(String token, String id, smartPatient patient){
 		String url= baseurl+"/Patient/"+ id;
 		HttpGet httpget = new HttpGet("https://fhir-open-api.smartplatforms.org/Patient/1032702"
@@ -343,6 +336,7 @@ public class smartClient {
 		}
 		return isSingle;
 	}
+	/**
 	public String getSingleSNPGenotypeTest(String SNP,String token,String id){
 		String genotype="";
 		String url=baseurl+"/sequence/"+ "?patient=patient/"+id+"&coordinates="+ SNP+"&_format=json";
@@ -359,22 +353,37 @@ public class smartClient {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (JSONException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return genotype;
 	}
+	**/
+	/**
+	 * 
+	 * @param id patient's profile ID
+	 * @param token access token
+	 * @param patient an instance of smartPatient;
+	 * @return patient with a smartSequencingLabAttached
+	 */
 	
-	public smartSequencingLab getSequencingLab(String id, String token, smartSequencingLab lab){
+	public smartPatient getSequencingLab(String id, String token, smartPatient patient){
 		String url=baseurl+"/Procedure?_profile=https://api.genomics.smartplatforms.org/profile/sequencinglab&subject=patient/"+id+"&_format=json";
 		HttpClient client=new DefaultHttpClient();
 		HttpGet labGet=new HttpGet(url);
 		labGet.setHeader("Authorization", "Bearer "+ token);
+		smartSequencingLab lab=new smartSequencingLab();
 		try {
+		
 			HttpResponse response=client.execute(labGet);
 			JSONObject seqLab=new JSONObject(EntityUtils.toString(response.getEntity()));
 			lab.setLabName(seqLab.getString("name"));
-			seqLab.getJSONArray("");
+			lab.setOrganization(seqLab.getString("organization"));
+			lab.setReferenceGenome(seqLab.getString("assembly"));
+			JSONArray specimen= seqLab.getJSONArray("specimen");
+			lab.setSampleType(specimen.getJSONObject(0).getString("type"));
+			lab.setSampleSource(specimen.getJSONArray(0).getJSONObject(0).getString("text"));
+			lab.setFileLocation(seqLab.getString("file"));
+			patient.setSequencingLab(lab);
 		} catch (ClientProtocolException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -388,7 +397,7 @@ public class smartClient {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return lab;	
+		return patient;	
 	}
 	
 	
@@ -399,9 +408,41 @@ public class smartClient {
 	public String getAccessToken(){
 		return this.accessToken;		
 	}
+	/**
+	 * 
+	 * @param patient an instance of smartPatient
+	 * @param token access token
+	 * @return patient object with an observation attached
+	 */
 	
-	public smartPatient getGeneticObservation(smartPatient patient){
-		
+	public smartPatient getGeneticObservation(smartPatient patient, String token){
+		smartObservation obs= new smartObservation();
+		String URL=baseurl+"/Observation/"+ patient.getUserId()+"&_format=json";
+		HttpClient client=new DefaultHttpClient();
+		HttpGet obsGet=new HttpGet(URL);
+		obsGet.setHeader("Authorization", "Bearer "+ token);
+		try {
+			HttpResponse response=client.execute(obsGet);
+			JSONObject observation=new JSONObject(EntityUtils.toString(response.getEntity()));
+			obs.setTraitAssessed(observation.getString("traitAssesed"));
+			obs.setVariantCode(observation.getString("variant"));
+			obs.setVariantGenotype(observation.getString("variantGenotype"));
+			obs.setVariantInterpretation(observation.getString("variantInterpretation"));
+			obs.setVariantComment(observation.getString("variantComment"));
+			patient.setAnObservation(obs);
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return patient;
 	}
 	class PostRequest extends AsyncTask<String,Void,String>{
@@ -419,7 +460,7 @@ public class smartClient {
 				
 				HttpClient httpclient = new DefaultHttpClient();
 				HttpPost httppost = new HttpPost(
-						"https://api.23andme.com/token/");
+						baseurl+"/token/");
 				
 				
 				try {
@@ -504,6 +545,10 @@ public class smartClient {
 			act.OnTokenCompleted(accessToken);
 		}
 		
+	}
+	
+	public String getServerUrl(){
+		return this.baseurl;
 	}
 	
 	
